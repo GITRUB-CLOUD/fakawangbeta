@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>方块世界</title>
+  <style>
+:root {
+  --sky: #8fd3ff;
+  --panel: rgba(255, 255, 255, 0.9);
+  --ink: #1d2b36;
+  --accent: #3f7f2f;
+  --shadow: 0 18px 45px rgba(32, 45, 54, 0.22);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Trebuchet MS", Arial, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.85) 0 8%, transparent 9%),
+    linear-gradient(var(--sky) 0 58%, #74bc5e 58% 100%);
+}
+
+.shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0;
+}
+
+.hero {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #315a89;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 7vw, 5.5rem);
+  line-height: 0.9;
+  text-shadow: 4px 4px 0 rgba(255, 255, 255, 0.55);
+}
+
+.intro {
+  max-width: 680px;
+  font-size: 1.1rem;
+}
+
+.stats,
+.game-card,
+.guide {
+  border: 4px solid rgba(29, 43, 54, 0.18);
+  border-radius: 22px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.stats {
+  display: grid;
+  gap: 8px;
+  min-width: 220px;
+  padding: 16px 18px;
+  font-size: 1.05rem;
+}
+
+.game-card { padding: 18px; }
+
+.toolbar,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.block-tool,
+.actions button {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 800;
+  color: white;
+  cursor: pointer;
+  box-shadow: inset 0 -4px rgba(0, 0, 0, 0.18), 0 5px 12px rgba(0, 0, 0, 0.12);
+}
+
+.block-tool.selected,
+.actions button.active {
+  outline: 4px solid #ffe56a;
+  transform: translateY(-2px);
+}
+
+.world-wrap {
+  overflow: auto;
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(#c8efff, #eaf9ff 62%, #8cc36a 62%);
+}
+
+.world {
+  display: grid;
+  grid-template-columns: repeat(18, 42px);
+  grid-auto-rows: 42px;
+  width: max-content;
+  margin: 0 auto;
+  transform: skewX(-8deg);
+}
+
+.cell {
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  cursor: crosshair;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.cell:hover {
+  z-index: 2;
+  filter: brightness(1.12);
+  transform: translateY(-4px);
+}
+
+.cell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.22), transparent 45%, rgba(0,0,0,0.14));
+  pointer-events: none;
+}
+
+.air { background: rgba(255, 255, 255, 0.18); }
+.grass { background: linear-gradient(#59b947 0 38%, #8a5a2b 38%); }
+.dirt { background: #8a5a2b; }
+.stone { background: #8a8f94; }
+.wood { background: repeating-linear-gradient(90deg, #8b5526 0 8px, #a76b32 8px 16px); }
+.leaf { background: #2f8d3c; }
+.water { background: rgba(34, 136, 220, 0.78); }
+
+.actions { margin: 16px 0 0; }
+.actions button { background: #315a89; }
+.actions button:nth-child(2) { background: #8b5526; }
+.actions button:nth-child(3) { background: var(--accent); }
+
+.guide {
+  margin-top: 20px;
+  padding: 18px 24px;
+}
+
+.guide h2 { margin-top: 0; }
+.guide li { margin: 8px 0; }
+
+@media (max-width: 760px) {
+  .hero { align-items: stretch; flex-direction: column; }
+  .world { grid-template-columns: repeat(18, 32px); grid-auto-rows: 32px; }
+}
+
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Sandbox Block Game</p>
+        <h1>方块世界</h1>
+        <p class="intro">采集、放置、切换方块，创造属于你的像素小岛。点击地图格子即可改造地形。</p>
+      </div>
+      <div class="stats" aria-live="polite">
+        <span>背包：<strong id="inventoryCount">24</strong></span>
+        <span>当前：<strong id="currentBlockName">草方块</strong></span>
+      </div>
+    </section>
+
+    <section class="game-card" aria-label="方块世界游戏区域">
+      <div class="toolbar" id="toolbar" aria-label="方块工具栏"></div>
+      <div class="world-wrap">
+        <div id="world" class="world" role="grid" aria-label="可编辑方块地图"></div>
+      </div>
+      <div class="actions">
+        <button id="mineMode" class="active" type="button">挖掘模式</button>
+        <button id="buildMode" type="button">建造模式</button>
+        <button id="randomize" type="button">生成新世界</button>
+      </div>
+    </section>
+
+    <section class="guide">
+      <h2>玩法</h2>
+      <ul>
+        <li>选择工具栏中的方块类型。</li>
+        <li>挖掘模式：点击非空气方块，获得一个背包方块。</li>
+        <li>建造模式：消耗背包方块，在空气或已有方块上放置当前方块。</li>
+        <li>目标：像沙盒游戏一样自由创造城堡、矿洞或花园。</li>
+      </ul>
+    </section>
+  </main>
+
+  <script>
+const width = 18;
+const height = 12;
+const worldEl = document.querySelector('#world');
+const toolbarEl = document.querySelector('#toolbar');
+const inventoryCountEl = document.querySelector('#inventoryCount');
+const currentBlockNameEl = document.querySelector('#currentBlockName');
+const mineModeBtn = document.querySelector('#mineMode');
+const buildModeBtn = document.querySelector('#buildMode');
+const randomizeBtn = document.querySelector('#randomize');
+
+const blocks = [
+  { id: 'grass', name: '草方块', color: '#59b947' },
+  { id: 'dirt', name: '泥土', color: '#8a5a2b' },
+  { id: 'stone', name: '石头', color: '#8a8f94' },
+  { id: 'wood', name: '木头', color: '#8b5526' },
+  { id: 'leaf', name: '树叶', color: '#2f8d3c' },
+  { id: 'water', name: '水', color: '#2288dc' },
+];
+
+let selectedBlock = blocks[0];
+let mode = 'mine';
+let inventory = 24;
+let world = [];
+
+function makeWorld() {
+  const groundLine = 6 + Math.floor(Math.random() * 2);
+
+  return Array.from({ length: height }, (_, y) => (
+    Array.from({ length: width }, (_, x) => {
+      const wave = Math.sin(x / 2) > 0.3 ? -1 : 0;
+      const surface = groundLine + wave;
+
+      if (y < surface) return 'air';
+      if (y === surface) return Math.random() > 0.12 ? 'grass' : 'water';
+      if (y < surface + 3) return 'dirt';
+      return Math.random() > 0.72 ? 'stone' : 'dirt';
+    })
+  ));
+}
+
+function plantTree(baseX) {
+  const surfaceY = world.findIndex(row => row[baseX] !== 'air');
+  if (surfaceY < 3) return;
+
+  world[surfaceY - 1][baseX] = 'wood';
+  world[surfaceY - 2][baseX] = 'wood';
+  for (let y = surfaceY - 4; y <= surfaceY - 2; y += 1) {
+    for (let x = baseX - 1; x <= baseX + 1; x += 1) {
+      if (world[y]?.[x] === 'air') world[y][x] = 'leaf';
+    }
+  }
+}
+
+function seedWorld() {
+  world = makeWorld();
+  plantTree(4);
+  plantTree(13);
+  renderWorld();
+}
+
+function renderToolbar() {
+  toolbarEl.innerHTML = '';
+  blocks.forEach(block => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `block-tool ${block.id === selectedBlock.id ? 'selected' : ''}`;
+    button.style.background = block.color;
+    button.textContent = block.name;
+    button.addEventListener('click', () => {
+      selectedBlock = block;
+      currentBlockNameEl.textContent = block.name;
+      renderToolbar();
+    });
+    toolbarEl.append(button);
+  });
+}
+
+function renderWorld() {
+  worldEl.innerHTML = '';
+  world.forEach((row, y) => {
+    row.forEach((block, x) => {
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = `cell ${block}`;
+      cell.setAttribute('role', 'gridcell');
+      cell.setAttribute('aria-label', `${x + 1}, ${y + 1}: ${block}`);
+      cell.addEventListener('click', () => editBlock(x, y));
+      worldEl.append(cell);
+    });
+  });
+}
+
+function editBlock(x, y) {
+  const current = world[y][x];
+  if (mode === 'mine') {
+    if (current === 'air') return;
+    world[y][x] = 'air';
+    inventory += 1;
+  } else if (inventory > 0) {
+    world[y][x] = selectedBlock.id;
+    inventory -= 1;
+  }
+  inventoryCountEl.textContent = inventory;
+  renderWorld();
+}
+
+function setMode(nextMode) {
+  mode = nextMode;
+  mineModeBtn.classList.toggle('active', mode === 'mine');
+  buildModeBtn.classList.toggle('active', mode === 'build');
+}
+
+mineModeBtn.addEventListener('click', () => setMode('mine'));
+buildModeBtn.addEventListener('click', () => setMode('build'));
+randomizeBtn.addEventListener('click', seedWorld);
+
+renderToolbar();
+seedWorld();
+
+  </script>
+</body>
+</html>
